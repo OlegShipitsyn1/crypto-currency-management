@@ -27,13 +27,14 @@
 
 <script lang="js">
 import { defineComponent } from 'vue';
-import { useCryptoGraph } from '../use/cryptoGraph';
+import { GraphFactoryMethod } from '../use/cryptoGraph';
 
 export default defineComponent({
   props: ['name'],
   name: "CurrencyBox",
   setup() {
-    const { normalizedGraph, currentGraphValue } = useCryptoGraph("BTC", "USD", "minute")
+    const factory = new GraphFactoryMethod()
+    const { normalizedGraph, currentGraphValue } = factory.create('default')
     return { normalizedGraph, currentGraphValue }
   }
 });

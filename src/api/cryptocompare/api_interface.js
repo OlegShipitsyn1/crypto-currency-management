@@ -4,19 +4,18 @@ import axios from "axios";
 export default {
   async getCurrency(crypto, currency) {
     const url = generateUrl("pricemulti", crypto, currency);
-    console.log(url);
     const data = await axios.get(url).then((res) => {
-      return res.data;
+      return res.data[crypto][currency];
     });
     return data;
   },
 
-  async getHistoryBy(timeUnit, crypto, currency, limit) {
+  async getHistoryBy(timeUnit, crypto, currency, limit = 100) {
     const url = generateUrl(
       `v2/histo${timeUnit}`,
       crypto,
       currency,
-      (limit = 100)
+      limit
     );
 
     const data = await axios.get(url).then((answer) => {
