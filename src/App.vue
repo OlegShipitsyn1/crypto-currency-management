@@ -15,7 +15,7 @@
           Choose currency to track
         </h2>
         <div class="">
-          <CurrencyBox name="BTC" />
+          <CurrencyBox type="live" crypto="BTC" currency="USD" cryptoFullname="Bitcoin" />
         </div>
       </div>
     </div>

@@ -11,11 +11,29 @@ const baseGraphOptions = {
   updateStrategy: timingUpdateStrategy
 }
 
-export class GraphFactoryMethod {
-  create(type) {
-    if (type === "default") {
-      const facade = new GraphFacade(baseGraphOptions)
-      return facade.init()
+const deniedStrategy = () => void 0
+
+const liveGraphOptions = { ...baseGraphOptions }
+
+const staticGraphOptions = { ...baseGraphOptions, updateStrategy: deniedStrategy }
+const rawLiveGraphOptions = { ...liveGraphOptions, normalizeStrategy: deniedStrategy }
+const rawStaticGraphOptions = { ...staticGraphOptions, normalizeStrategy: deniedStrategy }
+
+export const graphFactory = {
+  create(type, crypto, currency) {
+
+    const mix = options => {
+      const userCrypto = crypto || options.crypto
+      const userCurrency = currency || options.currency
+      return { ...options, userCrypto, userCurrency }
+    }
+
+    switch (type) {
+      case "live"      : return GraphFacade ( mix(baseGraphOptions) )
+      case "staic"     : return GraphFacade ( mix(staticGraphOptions) )
+      case "raw-static": return GraphFacade ( mix(rawStaticGraphOptions) )
+      case "raw-live"  : return GraphFacade ( mix(rawLiveGraphOptions) )
+      default          : return GraphFacade ( mix(baseGraphOptions) )
     }
   }
 }

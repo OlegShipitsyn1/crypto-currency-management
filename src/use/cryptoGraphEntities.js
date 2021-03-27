@@ -1,85 +1,66 @@
-import { reactive, onMounted, computed } from "vue";
+import { onMounted, computed, reactive } from "vue";
 
-export function nomalizeMinimalStrategy() {
-  const { graphPoints, limit } = this.graph;
+const timeUnitValue = {
+  get minute() { return 1000 * 60 },
+  get hour() { return this.minute * 60 },
+  get day() { return this.hour * 24; },
+};
+
+export function nomalizeMinimalStrategy(graph) {
+  const { graphPoints, limit } = graph;
   const maxValue = Math.max(...graphPoints);
   const minValue = Math.min(...graphPoints);
   const normalizeGraphPoint = (price) => ({
     graphValue: 5 + ((price - minValue) * 95) / (maxValue - minValue),
     price: price,
   });
-  const graph = graphPoints.map(normalizeGraphPoint);
-  if (graph.length > limit) graphPoints.splice(0, 1);
-  return graph;
+  const graphViewPoints = graphPoints.map(normalizeGraphPoint);
+  if (graphViewPoints.length > limit) graphPoints.splice(0, 1);
+  return graphViewPoints;
 }
 
-export async function timingUpdateStrategy() {
-  const { crypto, currency, timeUnit, graphPoints, api } = this.graph;
-  const timeUnitValue = {
-    get minute() { return 1000 * 60 },
-    get hour() { return this.minute * 60 },
-    get day() { return this.hour * 24; },
-  };
+export async function timingUpdateStrategy(graph) {
+  const { crypto, currency, timeUnit, graphPoints, api } = graph;
   setInterval(async () => {
     const updateData = await api.getCurrency(crypto, currency);
     graphPoints.push(updateData);
   }, timeUnitValue[timeUnit]);
 }
 
-class GraphNormalizer {
-  constructor(graph) {
-    this.graph = graph;
-  }
-  startNormalizing() {
-    return computed(this.graph.normalizeStrategy.bind(this));
+function useGraphNormalizer (graph) {
+    const { normalizeStrategy } = graph
+    return computed(normalizeStrategy.bind(null, graph));
+}
+
+function useGraphInitialState (graph) {
+  const { graphPoints, timeUnit, crypto, currency, api } = graph
+  onMounted(async () => {
+    const history = await api.getHistoryBy(timeUnit, crypto, currency);
+    history.forEach(point => graphPoints.push(point.close));
+  });
+}
+
+function useGraphUpdater (graph) {
+    const { updateStrategy } = graph
+    updateStrategy(graph);
+}
+
+function createGraphModel (options) {
+  const graphPoints = reactive([])
+  return {
+    ...options,
+    graphPoints
   }
 }
 
-class GraphMounter {
-  constructor(graph) {
-    this.graph = graph
-  }
-  mount() {
-    const { graphPoints, timeUnit, crypto, currency, api } = this.graph
-    onMounted(async () => {
-      const history = await api.getHistoryBy(timeUnit, crypto, currency);
-      history.forEach(point => graphPoints.push(point.close));
-    });
-  }
-}
+export function GraphFacade (options) {
+  const graph = createGraphModel(options)
+  const { graphPoints } = graph
+  const getLastGraphPoint = () => graphPoints[graphPoints.length - 1];
+  const currentGraphValue = computed(getLastGraphPoint);
+  useGraphInitialState(graph)
+  useGraphUpdater(graph)
+  const normalizedGraph = useGraphNormalizer(graph);
 
-class GraphUpdater {
-  constructor(graph) {
-    this.graph = graph;
-  }
-  startUpdating() {
-    const { updateStrategy } = this.graph
-      updateStrategy.call(this);
-  }
-}
-
-export class GraphFacade {
-  constructor(graph) {
-    this.api = graph.api;
-    this.crypto = graph.crypto;
-    this.currency = graph.currency;
-    this.limit = graph.limit;
-    this.timeUnit = graph.timeUnit;
-    this.normalizeStrategy = graph.normalizeStrategy;
-    this.updateStrategy = graph.updateStrategy;
-    this.graphPoints = reactive([]);
-  }
-
-  init() {
-    const getLastGraphPoint = () => this.graphPoints[this.graphPoints.length - 1];
-    const currentGraphValue = computed(getLastGraphPoint);
-    const normalizer = new GraphNormalizer(this);
-    const mounter = new GraphMounter(this);
-    const upater = new GraphUpdater(this);
-    mounter.mount();
-    upater.startUpdating();
-    const normalizedGraph = normalizer.startNormalizing();
-
-    return { normalizedGraph, currentGraphValue };
-  }
+  return { normalizedGraph, currentGraphValue };
 }
